@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Study App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
+  <style>
+    /* -- COLORS AND BASE -- */
+    :root {
+      --primary: #6366f1;
+      --secondary: #f472b6;
+      --bg: #0f172a;
+      --card: rgba(255, 255, 255, 0.14);
+      --accent: linear-gradient(90deg, var(--primary), var(--secondary));
+      --text: #f3f4f6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 98px;
+      min-width: 98px;
+      height: 100vh;
+      background: #18181b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 8px 0 42px #1a165544;
+      position: relative;
+      z-index: 10;
+    }
+
+    .sidebar-logo {
+      font-size: 2.19rem;
+      color: var(--primary);
+      font-weight: 800;
+      letter-spacing: -2px;
+      margin-bottom: 30px;
+    }
+
+    .sidebar-btn {
+      width: 61px;
+      height: 61px;
+      background: none;
+      border: none;
+      color: #d1d5db;
+      font-size: 1.6rem;
+      margin: 12px 0;
+      border-radius: 17px;
+      transition: background .15s, color .12s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .sidebar-btn.active,
+    .sidebar-btn:hover {
+      background: var(--accent);
+      color: #fff;
+      transform: scale(1.10);
+      box-shadow: 0 2px 14px #9145e677;
+    }
+
+    .sidebar-btn span {
+      position: absolute;
+      left: 69px;
+      background: #18181b;
+      color: #fff;
+      font-size: 1rem;
+      padding: 3px 10px;
+      opacity: 0;
+      pointer-events: none;
+      border-radius: 7px;
+      top: 50%;
+      transform: translateY(-50%);
+      min-width: 98px;
+      transition: .11s;
+      border: 1.5px solid #6366f155;
+      z-index: 9;
+    }
+
+    .sidebar-btn:hover span {
+      opacity: 1;
+    }
+
+    .sidebar-account {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 0;
+      position: relative;
+    }
+
+    .account-card {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 13px;
+      background: rgba(255, 255, 255, 0.10);
+      border-radius: 13px;
+      padding: 11px 17px;
+      color: #f3f4f6;
+      font-size: 1.07em;
+      margin-top: 6px;
+      min-width: 120px;
+      box-shadow: 0 2px 8px #9333ea21;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .account-icon {
+      font-size: 2em;
+    }
+
+    .account-dropdown {
+      display: none;
+      position: absolute;
+      left: 0;
+      bottom: 63px;
+      background: #18181b;
+      border-radius: 12px;
+      box-shadow: 0 2px 20px #2a2a4070;
+      color: #fff;
+      min-width: 185px;
+      padding: 11px 0;
+      z-index: 99;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .account-dropdown.show {
+      display: flex;
+    }
+
+    .account-dropdown-btn {
+      width: 100%;
+      background: none;
+      border: none;
+      color: #fff;
+      padding: 13px 18px;
+      font-size: 1em;
+      text-align: left;
+      cursor: pointer;
+      transition: .14s;
+    }
+
+    .account-dropdown-btn:hover {
+      background: var(--accent);
+      color: #222;
+    }
+
+    .main-area {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: linear-gradient(120deg, #0f172a 67%, #6366f1 160%);
+    }
+
+    .pages {
+      width: 100%;
+      min-height: 100vh;
+      padding: 0;
+      margin: 0;
+      position: relative;
+    }
+
+    .page {
+      position: absolute;
+      width: 100%;
+      top: 0;
+      left: 0;
+      min-height: 100vh;
+      opacity: 0;
+      transform: translateX(37px) scale(.98);
+      transition: opacity .45s, transform .5s;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .page.active {
+      position: relative;
+      opacity: 1;
+      z-index: 2;
+      pointer-events: auto;
+      transform: none;
+      animation: pageShow .55s;
+    }
+
+    @keyframes pageShow {
+      0% {
+        opacity: .1;
+        transform: translateX(60px) scale(.97);
+      }
+
+      100% {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 28px;
+      margin: 34px auto 38px auto;
+      max-width: 630px;
+      min-width: 320px;
+      box-shadow: 0 7px 42px #29568125;
+      padding: 42px 30px 29px 30px;
+      position: relative;
+      animation: fadeInUp .53s;
+    }
+
+    @keyframes fadeInUp {
+      0% {
+        opacity: .17;
+        transform: translateY(45px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .card h1,
+    .card h2 {
+      font-size: 2.3em;
+      font-weight: 800;
+      margin: 0 0 13px 0;
+      letter-spacing: -1.2px;
+    }
+
+    .card-footer {
+      text-align: right;
+      margin-top: 27px;
+    }
+
+    .btn-main {
+      font-size: 1.16em;
+      font-weight: 700;
+      border: none;
+      border-radius: 30px;
+      background: var(--accent);
+      color: #fff;
+      padding: 13px 37px;
+      margin: 10px 0 0 0;
+      box-shadow: 0 8px 27px #a21caf27;
+      cursor: pointer;
+      transition: .14s;
+    }
+
+    .btn-main:hover {
+      box-shadow: 0 12px 25px #14b8a655;
+      transform: scale(1.04);
+    }
+
+    .quiz-opt {
+      margin: 18px 0 0 0;
+      background: rgba(130, 90, 255, 0.18);
+      border-radius: 16px;
+      padding: 15px;
+      font-size: 1.10em;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background .13s, color .14s;
+    }
+
+    .quiz-opt:hover:not(.disabled) {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .quiz-opt.disabled {
+      opacity: .6;
+      pointer-events: none;
+    }
+
+    .quiz-bar {
+      width: 93%;
+      height: 14px;
+      background: #232335d6;
+      border-radius: 14px;
+      margin: 16px 0 10px 0;
+      overflow: hidden;
+    }
+
+    .quiz-bar-anim {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 14px;
+      transition: .26s;
+    }
+
+    .calendar-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      margin-top: 17px;
+      color: #fff;
+    }
+
+    .calendar-table th,
+    .calendar-table td {
+      padding: 13px 4px;
+      min-width: 36px;
+      border-radius: 8px;
+      border: 1px solid #344467;
+      font-size: 1.11em;
+    }
+
+    .calendar-tick {
+      background: linear-gradient(90deg, #38bdf8, #a21caf96, #f472b6);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .chat-box {
+      height: 230px;
+      overflow-y: auto;
+      background: rgba(30, 32, 51, 0.16);
+      padding: 16px;
+      border-radius: 13px;
+      margin-bottom: 14px;
+      font-size: 1.1em;
+    }
+
+    .ai,
+    .me {
+      max-width: 82%;
+      padding: 11px;
+      border-radius: 12px;
+      margin: 7px 0;
+      word-break: break-word;
+      font-size: 1.09em;
+    }
+
+    .me {
+      background: var(--primary);
+      color: #fff;
+      margin-left: auto;
+    }
+
+    .ai {
+      background: rgba(255, 255, 255, 0.21);
+    }
+
+    @media (max-width:950px) {
+      .sidebar {
+        display: none;
+      }
+
+      .main-area {
+        padding: 0;
+      }
+
+      .card {
+        margin: 23px 1vw 7px 1vw;
+        max-width: 98vw;
+        min-width: 0;
+      }
+
+      .pages,
+      .page {
+        min-width: 0;
+      }
+    }
+
+    @media (max-width:600px) {
+      .card {
+        padding: 13px 5vw 11px 5vw;
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- SIDEBAR NAV -->
+  <nav class="sidebar">
+    <div>
+      <div class="sidebar-logo"><i class="fa-solid fa-brain"></i></div>
+      <button class="sidebar-btn active" onclick="switchPage(0)"><i class="fa fa-house"></i>
+        <span>Dashboard</span></button>
+      <button class="sidebar-btn" onclick="switchPage(1)"><i class="fa fa-upload"></i> <span>Notes Quiz</span></button>
+      <button class="sidebar-btn" onclick="switchPage(2)"><i class="fa fa-layer-group"></i> <span>Random
+          Quiz</span></button>
+      <button class="sidebar-btn" onclick="switchPage(3)"><i class="fa fa-calendar"></i> <span>Calendar</span></button>
+      <button class="sidebar-btn" onclick="switchPage(4)"><i class="fa fa-microphone"></i> <span>Voice
+          Room</span></button>
+      <button class="sidebar-btn" onclick="switchPage(5)"><i class="fa fa-chart-bar"></i> <span>Report</span></button>
+      <button class="sidebar-btn" onclick="switchPage(6)"><i class="fa fa-comment"></i> <span>Chat</span></button>
+    </div>
+    <div class="sidebar-account">
+      <div class="account-card" id="accountBtn" onclick="toggleAccountDropdown()">
+        <span class="account-icon"><i class="fa-solid fa-user-circle"></i></span>
+        <span id="accNameMain"><b id="accUsername">Shubham</b><br><span
+            style="font-size:.93em;color:#a5adc8;">@shubham</span></span>
+      </div>
+      <div class="account-dropdown" id="accountDropdown">
+        <button class="account-dropdown-btn" onclick="editAccountName()">Edit Name</button>
+        <button class="account-dropdown-btn" onclick="logout()">Logout</button>
+      </div>
+      <div style="text-align:center;font-size:.96em;color:#83e1fc;margin-top:7px;opacity:.67;">Logged in</div>
+    </div>
+  </nav>
+  <main class="main-area">
+    <div class="pages">
+      <!-- Dashboard -->
+      <section class="page active" id="dashboardPg">
+        <div class="card" style="max-width:540px;text-align:center;">
+          <h1>👋 Smart Study Planner</h1>
+          <p style="color:#d1d5db;font-size:1.21em;line-height:1.7;">Upload notes, auto quizzes, week reports, voice
+            room and more! Track, practice, and improve using live analytics. Change profile, logout, everything in one
+            app.</p>
+        </div>
+      </section>
+      <!-- Notes Quiz -->
+      <section class="page" id="notesPg">
+        <div class="card">
+          <h1>📥 Upload Notes &amp; Quiz</h1>
+          <form onsubmit="return false;" class="upload-box">
+            <label for="fileUpload" class="upload-label" id="uploadLabel">
+              <i class="fa fa-cloud-arrow-up"></i> Click or drag to upload PDF/TXT
+            </label>
+            <input type="file" id="fileUpload" accept=".pdf,.txt" onchange="handleFileUpload(event)">
+          </form>
+          <div id="previewFile" class="preview-file"></div>
+          <div class="quiz-setting-row">
+            <div>
+              <label>Questions:
+                <input type="number" id="numQuestions" min="1" max="9" value="5"
+                  style="width:46px;padding:2px 5px;border-radius:9px;border:none;">
+              </label>
+            </div>
+            <button class="btn-main" onclick="beginCustomQuiz()">Start Quiz</button>
+            <button class="btn-main" style="background:#facc15;color:#18181b;font-weight:800;"
+              onclick="showNotesSummary()">Summary</button>
+          </div>
+          <div id="notesQuizContainer" style="margin:18px 0 4px 0;"></div>
+          <div class="quiz-bar">
+            <div id="notesProgress" class="quiz-bar-anim"></div>
+          </div>
+          <div id="notesQuizStats" style="color:#c6bfff;margin-top:4px;font-size:1em;"></div>
+        </div>
+      </section>
+      <!-- Random Quiz -->
+      <section class="page" id="quizPg">
+        <div class="card">
+          <h1>🎲 Random Quiz</h1>
+          <div id="quizScreen"></div>
+          <div class="quiz-bar">
+            <div id="quizProgress" class="quiz-bar-anim"></div>
+          </div>
+          <div class="card-footer">
+            <button class="btn-main" onclick="loadRandomQuiz()">Reload Quiz</button>
+            <span id="quizStats" style="margin-left:19px;color:#aaa;font-size:.97em;"></span>
+          </div>
+        </div>
+      </section>
+      <!-- Calendar -->
+      <section class="page" id="calendarPg">
+        <div class="card">
+          <h1>📆 Study Calendar</h1>
+          <p style="color:#bfdffc;font-size:1.11em;">Each day you use the app is marked—just come and you're
+            tracked!<br><b>Colored = studied 🔥</b></p>
+          <table class="calendar-table" id="calendarTable"></table>
+        </div>
+      </section>
+      <!-- Voice Room -->
+      <section class="page" id="voicePg">
+        <div class="card">
+          <h1>🎤 Voice Study Room</h1>
+          <div id="voiceStatus" style="margin-bottom:18px;color:#33d1e4;font-size:1.07em;">Not Connected</div>
+          <button class="btn-main" onclick="joinVoice()">Join Room</button>
+          <button class="btn-main" style="background:#333;" onclick="leaveVoice()">Leave Room</button>
+          <div id="voiceLog"></div>
+        </div>
+      </section>
+      <!-- Report/Analytics -->
+      <section class="page" id="reportPg">
+        <div class="card">
+          <h1>📊 Weekly Report</h1>
+          <div id="reportContent"></div>
+        </div>
+      </section>
+      <!-- AI Chat -->
+      <section class="page" id="chatPg">
+        <div class="card">
+          <h1>💬 AI Chat</h1>
+          <div class="chat-box" id="chatBox"></div>
+          <form onsubmit="return sendChat()" style="display:flex;gap:12px;">
+            <input id="chatInput" placeholder="Type here..."
+              style="flex:1;padding:11px;border-radius:13px;border:none;">
+            <button class="btn-main" style="padding:11px 26px;">Send</button>
+          </form>
+        </div>
+      </section>
+    </div>
+    <!-- Notes summary modal -->
+    <div id="summaryModal"
+      style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.73);justify-content:center;align-items:center;z-index:9999;">
+      <div
+        style="background:#18181b;padding:34px 22px 24px 22px;border-radius:15px;min-width:265px;max-width:95vw;text-align:center;position:relative;">
+        <span style="position:absolute;top:13px;right:22px;font-size:2.0rem;cursor:pointer;color:var(--secondary);"
+          onclick="closeSummary()">&times;</span>
+        <h2>Notes Summary</h2>
+        <div id="summaryDetails" style="margin-top:13px;font-size:1.17em;text-align:left;"></div>
+      </div>
+    </div>
+  </main>
+  <script>
+    // ---- Account/profile logic ----
+    let accName = localStorage.getItem("st_accname") || "Shubham";
+    let accUser = localStorage.getItem("st_accuser") || "shubham";
+    function updateAccountBox() {
+      document.getElementById("accUsername").textContent = accName;
+      document.getElementById("accNameMain").innerHTML = "<b id='accUsername'>" + accName + "</b><br><span style='font-size:.93em;color:#a5adc8;'>@" + accUser + "</span>";
+    }
+    updateAccountBox();
+    function toggleAccountDropdown() {
+      let drop = document.getElementById("accountDropdown");
+      drop.classList.toggle("show");
+      document.addEventListener("mousedown", function hideAccDrop(e) {
+        if (!drop.contains(e.target) && !document.getElementById("accountBtn").contains(e.target)) {
+          drop.classList.remove("show");
+          document.removeEventListener("mousedown", hideAccDrop, true);
+        }
+      }, true);
+    }
+    function editAccountName() {
+      let name = prompt("Enter your name:", accName || "");
+      if (name && name.trim().length > 2) {
+        accName = name.trim().slice(0, 16);
+        accUser = accName.replace(/\s+/g, '').toLowerCase().slice(0, 22);
+        localStorage.setItem("st_accname", accName);
+        localStorage.setItem("st_accuser", accUser);
+        updateAccountBox();
+        alert("Name changed!");
+      }
+      document.getElementById("accountDropdown").classList.remove("show");
+    }
+    function logout() {
+      if (confirm("Logout this account? All data will reset.")) {
+        localStorage.clear();
+        accName = ""; accUser = "";
+        updateAccountBox();
+        document.getElementById("previewFile").textContent = "";
+        document.getElementById("notesQuizContainer").innerHTML = "";
+        document.getElementById("notesProgress").style.width = "0%";
+        document.getElementById("notesQuizStats").textContent = "";
+        document.getElementById("quizScreen").innerHTML = "";
+        document.getElementById("quizProgress").style.width = "0%";
+        document.getElementById("quizStats").textContent = "";
+        document.getElementById("voiceLog").textContent = "";
+        renderCalendar();
+        alert("Logged out!");
+        document.getElementById("accountDropdown").classList.remove("show");
+      }
+    }
+
+    // ---- Sidebar Navigation ----
+    const pages = document.querySelectorAll('.page');
+    const btns = document.querySelectorAll('.sidebar-btn');
+    function switchPage(n) {
+      pages.forEach((p, i) => { p.classList.toggle('active', i === n); });
+      btns.forEach((b, i) => { b.classList.toggle('active', i === n); });
+      if (n === 3) renderCalendar();
+      if (n === 2) loadRandomQuiz();
+      if (n === 1) afterUploadUI();
+      if (n === 5) showReport();
+    }
+
+    // ------------------- PDF/TXT UPLOAD & LOGICAL QUIZ ONE-BY-ONE ---------------------
+    let uploadedText = "";
+    let notesQuiz = [], notesQuizIx = 0, notesQuizScore = 0, notesQuizTotal = 0;
+    document.getElementById('uploadLabel').ondragover = function (e) { e.preventDefault(); this.style.background = "#434972"; };
+    document.getElementById('uploadLabel').ondragleave = function (e) { e.preventDefault(); this.style.background = ""; };
+    document.getElementById('uploadLabel').ondrop = function (e) {
+      e.preventDefault();
+      let file = e.dataTransfer.files[0];
+      document.getElementById('fileUpload').files = e.dataTransfer.files;
+      handleFileUpload({ target: { files: [file] } });
+      this.style.background = "";
+    };
+    function handleFileUpload(ev) {
+      const f = ev.target.files[0];
+      if (!f) return;
+      if (f.name.toLowerCase().endsWith('.txt')) {
+        f.text().then(text => {
+          uploadedText = text; document.getElementById('previewFile').textContent = "Loaded: " + f.name;
+          afterUploadUI();
+        });
+      } else if (f.name.toLowerCase().endsWith('.pdf')) {
+        readPDF(f).then(txt => {
+          uploadedText = txt;
+          document.getElementById('previewFile').textContent = "Loaded: " + f.name;
+          afterUploadUI();
+        });
+      } else {
+        uploadedText = "";
+        document.getElementById('previewFile').textContent = "❌ Unsupported file.";
+      }
+    }
+    async function readPDF(file) {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      let t = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const p = await pdf.getPage(i);
+        const c = await p.getTextContent();
+        t += c.items.map(it => it.str).join(" ") + " ";
+      }
+      return t;
+    }
+    function afterUploadUI() {
+      document.getElementById('notesQuizContainer').innerHTML = "";
+      document.getElementById('notesProgress').style.width = "0%";
+      document.getElementById('notesQuizStats').innerText = "";
+      document.getElementById('numQuestions').disabled = (!uploadedText || uploadedText.length < 30);
+    }
+    function beginCustomQuiz() {
+      if (!uploadedText || uploadedText.length < 30)
+        return alert("Upload some valid study notes (PDF or TXT) first!");
+      const N = Math.min(Math.max(1, parseInt(document.getElementById('numQuestions').value) || 5), 9);
+      let sents = uploadedText.match(/[^\.!\?]+[\.!\?]+/g) || [];
+      sents = sents.map(s => s.trim()).filter(s => s.length > 25);
+      if (sents.length < 2) { alert("Not enough notes to make quiz."); return; }
+      let logicSents = sents.filter(t => /\b(is|are|can|should|was|were|means|because)\b/i.test(t));
+      if (logicSents.length < N) logicSents = sents.sort((a, b) => b.length - a.length).slice(0, N);
+      else logicSents = logicSents.sort(() => Math.random() - .5).slice(0, N);
+      notesQuiz = logicSents.map(q => notesQuizGen(q));
+      notesQuizScore = notesQuizIx = 0; notesQuizTotal = N;
+      showNotesQuizQuestion(notesQuizIx);
+    }
+    function notesQuizGen(sent) {
+      let ans, q, opts, type;
+      if (Math.random() < .24 && sent.length < 110) {
+        type = "tf"; q = "True/False: " + sent.replace(/\s+/g, " ").replace(/\.$/, "");
+        ans = "True"; opts = ["True", "False"];
+        if (Math.random() < .35) {
+          q = q.replace(/is|are|was|were|can|should/gi, v => { return v === "is" ? "isn't" : v === "are" ? "aren't" : v === "was" ? "wasn't" : v === "were" ? "weren't" : v === "can" ? "cannot" : "shouldn't" });
+          ans = "False";
+        }
+        return { q, opts, ans, type };
+      }
+      let s = sent.split(" ");
+      let idx = Math.max(1, Math.floor(s.length / Math.max(2, Math.floor(Math.random() * 3) + 2)));
+      if (s[idx].length > 2 && !/is|are|was|were|can|should|to|the|and/i.test(s[idx])) {
+        let blank = s[idx].replace(/[.,?\(\)]/g, ""); ans = blank; q = sent.replace(s[idx], "_____"); type = "blank";
+        let optSet = new Set([ans]);
+        while (optSet.size < 4) {
+          let i_ = Math.floor(Math.random() * s.length);
+          if (i_ !== idx && s[i_].length > 2) optSet.add(s[i_].replace(/[.,?\(\)]/g, ""));
+        }
+        opts = Array.from(optSet).sort(() => Math.random() - .5);
+        return { q, opts, ans, type };
+      }
+      idx = Math.floor(Math.random() * Math.min(6, s.length - 1));
+      ans = s[idx].replace(/[.,?\(\)]/g, ""); q = sent.replace(s[idx], "_____"); type = "mcq";
+      opts = [ans, "Value", "Logic", "Concept"].sort(() => Math.random() - .5);
+      return { q, opts, ans, type };
+    }
+    function showNotesQuizQuestion(i) {
+      if (i >= notesQuiz.length) {
+        document.getElementById('notesQuizContainer').innerHTML = "<div style='font-size:1.30em;margin:17px 0;font-weight:600;'>Completed! Your Score: " + notesQuizScore + "/" + notesQuizTotal + '<br>' + (100 * notesQuizScore / notesQuizTotal).toFixed(1) + "% 🎉</div>";
+        document.getElementById('notesProgress').style.width = "100%";
+        document.getElementById('notesQuizStats').textContent = "Done";
+        recordActivity('notesQuiz', notesQuizScore, notesQuizTotal);
+        return;
+      }
+      let q = notesQuiz[i];
+      let html = '<div style="font-size:1.19em;margin-bottom:17px;"><b>Q' + (i + 1) + ':</b> ' + q.q + '</div>';
+      q.opts.forEach(opt => {
+        html += '<div class="quiz-opt" onclick="answerNotesQuiz(this,' + i + ',\'' + opt + '\')">' + opt + '</div>';
+      });
+      document.getElementById('notesQuizContainer').innerHTML = html;
+      document.getElementById('notesProgress').style.width = (100 * i / notesQuizTotal) + '%';
+      document.getElementById('notesQuizStats').textContent = "Question " + (i + 1) + " of " + notesQuizTotal;
+    }
+    function answerNotesQuiz(elem, i, val) {
+      if (notesQuiz[i].ans === val) { notesQuizScore++; }
+      Array.from(document.querySelectorAll("#notesQuizContainer .quiz-opt")).forEach(opt => {
+        opt.classList.add("disabled");
+        if (opt.innerText === notesQuiz[i].ans)
+          opt.style.background = "linear-gradient(90deg,#16a34a,#22d3ee)";
+        if (opt.innerText === val && opt.innerText !== notesQuiz[i].ans)
+          opt.style.background = "linear-gradient(90deg,#ef4444,#fb7185)";
+      });
+      setTimeout(() => { notesQuizIx++; showNotesQuizQuestion(notesQuizIx); }, 900);
+    }
+    function showNotesSummary() {
+      if (!uploadedText || uploadedText.length < 30) return alert("Upload some notes first!");
+      document.getElementById('summaryDetails').innerHTML = "⏳ Creating summary...";
+      document.getElementById('summaryModal').style.display = "flex";
+      let sentences = uploadedText.split(/[.!?]/).map(s => s.trim()).filter(s => s.length > 24);
+      let sorted = [...sentences].sort((a, b) => b.length - a.length);
+      let summary = "";
+      if (sorted.length == 0) summary = "No content for summary.";
+      else {
+        summary = "<b>Revision Points:</b><br>";
+        for (let i = 0; i < Math.min(5, sorted.length); i++)
+          summary += (i + 1) + ". " + sorted[i] + "<br>";
+      }
+      setTimeout(function () {
+        document.getElementById('summaryDetails').innerHTML = summary;
+      }, 620);
+    }
+    function closeSummary() { document.getElementById('summaryModal').style.display = "none"; }
+    // -------- Random Quiz one-by-one ------
+    const QUIZ_POOL = [
+      { q: "Who is known as the 'Father of Computers'?", a: "Charles Babbage", opts: ["Charles Babbage", "Bill Gates", "Isaac Newton", "Alan Turing"] },
+      { q: "What does HTML stand for?", a: "HyperText Markup Language", opts: ["HighText Marking Language", "HyperText Markup Language", "HyperTool Markup Language", "HyperText Markdown Language"] },
+      { q: "Which planet is called the Red Planet?", a: "Mars", opts: ["Venus", "Mars", "Jupiter", "Saturn"] },
+      { q: "The chemical symbol for Gold is?", a: "Au", opts: ["Gd", "Ag", "Au", "Go"] },
+      { q: "Largest mammal on Earth?", a: "Blue Whale", opts: ["Elephant", "Blue Whale", "Shark", "Giraffe"] },
+      { q: "Which language is used for web apps?", a: "JavaScript", opts: ["Java", "JavaScript", "Python", "C++"] },
+      { q: "Where is the Great Wall located?", a: "China", opts: ["India", "Mongolia", "China", "Peru"] },
+      { q: "Who invented the light bulb?", a: "Thomas Edison", opts: ["Nikola Tesla", "Thomas Edison", "Newton", "James Watt"] },
+      { q: "Which year did World War 2 end?", a: "1945", opts: ["1939", "1918", "1945", "1955"] },
+      { q: "Speed of light is?", a: "299,792 km/s", opts: ["150,000 km/s", "299,792 km/s", "1,000 km/s", "450,900 km/s"] },
+      { q: "First President of India?", a: "Dr. Rajendra Prasad", opts: ["Dr. Rajendra Prasad", "Sardar Patel", "Nehru", "Zail Singh"] },
+      { q: "What is the boiling point of water?", a: "100°C", opts: ["90°C", "110°C", "100°C", "0°C"] }
+    ];
+    let randQuiz = [], randQuizIx = 0, randQuizScore = 0, randQuizTotal = 0;
+    function loadRandomQuiz() {
+      const N = 5; randQuiz = pickRandom(QUIZ_POOL, N); randQuizIx = randQuizScore = 0; randQuizTotal = N;
+      showRandomQuizQ(randQuizIx);
+    }
+    function showRandomQuizQ(i) {
+      if (i >= randQuiz.length) {
+        document.getElementById('quizScreen').innerHTML = "<div style='font-size:1.30em;margin:17px 0;font-weight:600;'>Completed! Your Score: " + randQuizScore + "/" + randQuizTotal + '<br>' + (100 * randQuizScore / randQuizTotal).toFixed(1) + "% 🎉</div>";
+        document.getElementById('quizProgress').style.width = "100%";
+        document.getElementById('quizStats').textContent = "Done";
+        recordActivity('randQuiz', randQuizScore, randQuizTotal);
+        return;
+      }
+      let q = randQuiz[i], opts = q.opts.sort(() => Math.random() - .5), html = '<div style="font-size:1.15em;margin-bottom:14px;"><b>Q' + (i + 1) + ':</b> ' + q.q + '</div>';
+      opts.forEach(opt => {
+        html += '<div class="quiz-opt" onclick="answerRandomQuiz(this,' + i + ',\'' + opt + '\')">' + opt + '</div>';
+      });
+      document.getElementById('quizScreen').innerHTML = html;
+      document.getElementById('quizProgress').style.width = (100 * i / randQuizTotal) + '%';
+      document.getElementById('quizStats').textContent = "Question " + (i + 1) + " of " + randQuizTotal;
+    }
+    function answerRandomQuiz(elem, i, val) {
+      if (randQuiz[i].a === val) { randQuizScore++; }
+      Array.from(document.querySelectorAll("#quizScreen .quiz-opt")).forEach(opt => {
+        opt.classList.add("disabled");
+        if (opt.innerText === randQuiz[i].a)
+          opt.style.background = "linear-gradient(90deg,#16a34a,#22d3ee)";
+        if (opt.innerText === val && opt.innerText !== randQuiz[i].a)
+          opt.style.background = "linear-gradient(90deg,#ef4444,#fb7185)";
+      });
+      setTimeout(() => { randQuizIx++; showRandomQuizQ(randQuizIx); }, 900);
+    }
+    function pickRandom(arr, n) { let copy = [...arr], res = []; for (let i = 0; i < n && copy.length > 0; i++) { let idx = Math.floor(Math.random() * copy.length); res.push(copy[idx]); copy.splice(idx, 1); } return res; }
+
+    // ---- Analytics: save and report ----
+    function recordActivity(type, score, total) {
+      let analytics = JSON.parse(localStorage.getItem("studyAnalytics") || "{}");
+      // Structure: analytics[type]=[{dt,score,total},...]
+      let week = getCurrentWeek(), dt = new Date().toISOString().slice(0, 10);
+      if (!analytics[type]) analytics[type] = [];
+      analytics[type].push({ week, dt, score, total });
+      localStorage.setItem("studyAnalytics", JSON.stringify(analytics));
+    }
+    function getCurrentWeek() {
+      let now = new Date();
+      let first = new Date(now.setDate(now.getDate() - now.getDay()));
+      let last = new Date(now.setDate(now.getDate() - now.getDay() + 6));
+      return first.toISOString().slice(0, 10) + "_" + last.toISOString().slice(0, 10);
+    }
+    function showReport() {
+      let analytics = JSON.parse(localStorage.getItem("studyAnalytics") || "{}");
+      let week = getCurrentWeek();
+      let notesList = analytics.notesQuiz ? analytics.notesQuiz.filter(q => q.week == week) : [];
+      let randList = analytics.randQuiz ? analytics.randQuiz.filter(q => q.week == week) : [];
+      let voiceList = analytics.voiceJoin ? analytics.voiceJoin.filter(q => q.week == week) : [];
+      let nQuiz = notesList.length + randList.length;
+      let nPractice = (notesList.reduce((a, b) => a + b.total, 0) + randList.reduce((a, b) => a + b.total, 0));
+      let bestScore = Math.max(0, ...notesList.concat(randList).map(q => q.score));
+      let bestOut = (bestScore || (nQuiz === 0 ? 0 : '--')) + "/" + (nPractice > 0 ? nPractice : "--");
+      let voiceSessions = voiceList.length;
+      let html = `<div style="font-size:1.21em;">
+        <b>Quizzes Solved:</b> ${nQuiz}<br>
+        <b>Total Questions Practiced:</b> ${nPractice}<br>
+        <b>Best Quiz Score This Week:</b> ${bestOut}<br>
+        <b>Voice Room Sessions:</b> ${voiceSessions}<br>
+      </div>
+      <hr>
+      <div style="font-size:.99em;opacity:.74;"><b>Details:</b><br>
+        Notes quizzes: ${notesList.length}<br>
+        Random quizzes: ${randList.length}<br>
+        Last score: ${(notesList.concat(randList).length) ? (notesList.concat(randList).slice(-1)[0].score) : 0}
+      </div>`;
+      document.getElementById('reportContent').innerHTML = html;
+    }
+
+    // ---- Calendar -----
+    let studyDays = JSON.parse(localStorage.getItem("ssdStudyDays") || "{}");
+    function renderCalendar() {
+      const now = new Date(), year = now.getFullYear(), month = now.getMonth();
+      const todayStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+      studyDays[todayStr] = true;
+      localStorage.setItem("ssdStudyDays", JSON.stringify(studyDays));
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      let html = "<tr>";["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach(d => html += `<th>${d}</th>`); html += "</tr><tr>";
+      for (let j = 0; j < firstDay; j++)html += "<td></td>";
+      for (let i = 1; i <= daysInMonth; i++) {
+        const dt = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
+        html += `<td class="${studyDays[dt] ? 'calendar-tick' : ''}">${i}${studyDays[dt] ? '<br>✅' : ''}</td>`;
+        if ((i + firstDay) % 7 == 0) html += "</tr><tr>";
+      }
+      html += "</tr>";
+      document.getElementById('calendarTable').innerHTML = html;
+    }
+
+    // Agora voice logic
+    const AGORA_APP_ID = "f787a20658314414ad5a88ee52471128";
+    const AGORA_TOKEN = "007eJxTYHh9wnXXFebwHZWX/vfHv6p6oBWW7pOkW+4XXPP8f3U66wEFhjRzC/NEIwMzUwtjQxMTQ5PEFNNEC4vUVFMjE3NDQyML5UjxzIZARga1XAsGRigE8TkZiktKUyqL8vNzGRgAFqwgfA==";
+    const CHANNEL = "studyroom";
+    let rtcClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" }), localTrack = null;
+    function joinVoice() {
+      document.getElementById('voiceStatus').textContent = "Connecting...";
+      rtcClient.join(AGORA_APP_ID, CHANNEL, AGORA_TOKEN).then(uid => {
+        return AgoraRTC.createMicrophoneAudioTrack().then(track => {
+          localTrack = track; return rtcClient.publish(track).then(() => {
+            document.getElementById('voiceStatus').textContent = "Connected (uid:" + uid + ", " + (accName || 'Anon') + ")";
+            addVoiceLog(uid, "Join");
+            recordActivity('voiceJoin', 1, 1);
+          });
+        });
+      }).catch(e => {
+        document.getElementById('voiceStatus').textContent = "Error: " + (e.message || e);
+      });
+    }
+    function leaveVoice() {
+      if (localTrack) { localTrack.stop(); localTrack.close(); localTrack = null; }
+      rtcClient.leave().then(() => {
+        document.getElementById('voiceStatus').textContent = "Not Connected";
+        addVoiceLog("", 'Left');
+        recordActivity('voiceJoin', 0, 0);
+      }).catch(e => {
+        document.getElementById('voiceStatus').textContent = "Error leaving: " + (e.message || e);
+      });
+    }
+    function addVoiceLog(uid, act) {
+      let msg = (act === "Join") ? "Voice room joined." : "Left voice room.";
+      document.getElementById('voiceLog').innerHTML += `<div style="font-size:.98em;line-height:1.6;color:#93e8f7">${msg}</div>`;
+    }
+
+    // Chat logic
+    async function sendChat() {
+      const txt = document.getElementById("chatInput").value.trim();
+      if (!txt) return false;
+      appendChat("me", txt);
+      document.getElementById("chatInput").value = "";
+      appendChat("ai", "⏳ Thinking...");
+      setTimeout(() => {
+        const box = document.getElementById("chatBox");
+        const nodes = box.querySelectorAll('.ai');
+        if (nodes.length) nodes[nodes.length - 1].innerText = "Sorry! Real AI not connected in this demo, but imagine smart study help here. 😊";
+      }, 640);
+      return false;
+    }
+    function appendChat(who, text) {
+      const div = document.createElement("div");
+      div.className = who === "me" ? "me" : "ai"; div.innerText = text;
+      document.getElementById("chatBox").appendChild(div);
+      document.getElementById("chatBox").scrollTop = document.getElementById("chatBox").scrollHeight;
+    }
+    // INIT
+    switchPage(0); renderCalendar();
+  </script>
+</body>
+
+</html>
